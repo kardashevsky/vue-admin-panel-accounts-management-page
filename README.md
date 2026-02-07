@@ -1,5 +1,83 @@
-# Vue 3 + TypeScript + Vite
+# Accounts Management Form (Vue 3 + TS + Vite)
 
-This template should help get you started developing with Vue 3 and TypeScript in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Форма управления учетными записями с сохранением в Pinia и восстановлением после перезагрузки страницы (localStorage).
 
-Learn more about the recommended Project Setup and IDE Support in the [Vue Docs TypeScript Guide](https://vuejs.org/guide/typescript/overview.html#project-setup).
+## Требования
+
+- Node.js **18+** (рекомендуется 20+)
+- npm (идёт с Node.js)
+
+## Запуск (быстрый старт)
+
+```bash
+npm install && npm run dev
+```
+
+Приложение будет доступно по адресу: [http://localhost:5173](http://localhost:5173)
+
+## Стек
+
+- `Vue 3` (`<script setup>`, Composition API)
+- `TypeScript`
+- `Vite`
+- `Pinia` (state management)
+- `PrimeVue 4` + `PrimeIcons` + `@primevue/themes` + `@primeuix/themes`
+- `uuid` (генерация `id` для записей)
+
+## Архитектура проекта
+
+### Слои
+
+- `src/types/` — типы домена (`Account`, `Label`, `AccountType`)
+- `src/stores/` — Pinia store
+- `src/components/` — UI-компоненты
+
+### Основные компоненты
+
+**src/components/AccountsPage.vue (страница/контейнер)**
+
+- показывает заголовок, кнопку добавления, подсказку для меток
+- рендерит список записей из стора
+- прокидывает `modelValue` и события в строки
+
+**src/components/AccountRow.vue (строка одной учетной записи)**
+
+- локальный `draft` (`reactive`) для редактирования
+- преобразование меток `string <-> Label[]`
+- обработчики `blur/change` для триггера валидации и сохранения
+- UI-валидация (подсветка) и счётчики символов
+
+## Функциональность
+
+- Добавление учетной записи кнопкой **«Добавить»**.
+- Удаление учетной записи кнопкой с иконкой корзины (trash).
+
+### Поля учетной записи
+
+- **Метка** — необязательное поле, максимум 50 символов.
+  Ввод нескольких меток — через `;`.
+  На `blur` строка преобразуется в массив объектов:
+  `[{ text: "метка1" }, { text: "метка2" }]`
+
+- **Тип** — `LDAP / LOCAL`
+
+  - `LDAP` → поле **Пароль** скрыто, значение сохраняется как `null`
+  - `LOCAL` → поле **Пароль** показано, пароль обязателен
+
+- **Логин** — обязательное поле, максимум 100 символов
+
+- **Пароль** — обязательное поле для `LOCAL`, максимум 100 символов
+
+### Валидация
+
+- текстовые поля — на потере фокуса (`blur`)
+- `select` — на изменении значения
+- при ошибках — подсветка полей
+- Счётчики символов под полями: Метка / Логин / Пароль
+
+### Персист
+
+- ключ хранения: vue-admin-accounts
+- данные хранятся в Pinia
+- автоматическая запись в localStorage
+- при перезагрузке страницы записи восстанавливаются
