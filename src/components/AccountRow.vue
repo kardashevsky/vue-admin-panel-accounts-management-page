@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { computed, reactive, watch } from 'vue'
 import InputText from 'primevue/inputtext'
-import Dropdown from 'primevue/dropdown'
+import Select from 'primevue/select'
 import Button from 'primevue/button'
 
 import type { Account, AccountType, Label } from '@/types/account'
 
 const props = defineProps<{ modelValue: Account }>()
-const emit = defineEmits<{ (e: 'update:modelValue', v: Account): void; (e: 'remove', id: string): void }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', v: Account): void
+  (e: 'remove', id: string): void
+}>()
 
 const typeOptions: { label: string; value: AccountType }[] = [
   { label: 'LDAP', value: 'LDAP' },
@@ -27,16 +30,15 @@ const state = reactive({
 })
 
 function labelsToInput(labels: Label[]) {
-  return labels.map(l => l.text).join('; ')
+  return labels.map((l) => l.text).join('; ')
 }
 
 function parseLabels(input: string): Label[] {
   return input
     .split(';')
-    .map(s => s.trim())
+    .map((s) => s.trim())
     .filter(Boolean)
-    .slice(0, 50) // защита от мусора; лимит по длине поля ниже
-    .map(text => ({ text }))
+    .map((text) => ({ text }))
 }
 
 function validate(acc: Account) {
@@ -69,21 +71,23 @@ function update(patch: Partial<Account>) {
 function onTypeChange(type: AccountType) {
   if (type === 'LDAP') {
     update({ type, password: null })
-    // пароль больше не валидируем
     state.errors.password = false
     state.touched.password = false
   } else {
     update({ type, password: props.modelValue.password ?? '' })
   }
-  // сохранение по change
-  validate({ ...props.modelValue, type, password: type === 'LDAP' ? null : (props.modelValue.password ?? '') })
+
+  validate({
+    ...props.modelValue,
+    type,
+    password: type === 'LDAP' ? null : (props.modelValue.password ?? ''),
+  })
 }
 
 function onLabelsBlur() {
-  const raw = state.labelsInput.slice(0, 50) // максимум 50 символов
+  const raw = state.labelsInput.slice(0, 50)
   state.labelsInput = raw
   update({ labels: parseLabels(raw) })
-  // метка необязательная, валидации нет
 }
 
 function onLoginBlur() {
@@ -108,50 +112,45 @@ const passwordInvalid = computed(() => state.errors.password)
 <template>
   <div
     style="
-      display:grid;
+      display: grid;
       grid-template-columns: 1.2fr 0.8fr 1fr 1fr auto;
       gap: 12px;
       align-items: start;
     "
   >
     <div>
-      <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Метка</label>
       <InputText
         v-model="state.labelsInput"
         placeholder="tag1; tag2; tag3"
         maxlength="50"
         @blur="onLabelsBlur"
-        style="width:100%;"
+        style="width: 100%;"
       />
-      <small style="display:block; margin-top:6px; opacity:.7;">Введите метки через ;</small>
     </div>
 
     <div>
-      <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Тип</label>
-      <Dropdown
+      <Select
         :modelValue="account.type"
         :options="typeOptions"
         optionLabel="label"
         optionValue="value"
         @update:modelValue="onTypeChange"
-        style="width:100%;"
+        style="width: 100%;"
       />
     </div>
 
     <div>
-      <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Логин *</label>
       <InputText
         :modelValue="account.login"
         @update:modelValue="(v) => update({ login: v })"
         maxlength="100"
         @blur="onLoginBlur"
         :invalid="loginInvalid"
-        style="width:100%;"
+        style="width: 100%;"
       />
     </div>
 
     <div>
-      <label style="display:block; font-size:12px; opacity:.8; margin-bottom:6px;">Пароль *</label>
       <InputText
         v-if="account.type === 'LOCAL'"
         :modelValue="account.password ?? ''"
@@ -160,14 +159,12 @@ const passwordInvalid = computed(() => state.errors.password)
         maxlength="100"
         @blur="onPasswordBlur"
         :invalid="passwordInvalid"
-        style="width:100%;"
+        style="width: 100%;"
       />
-      <div v-else style="height:40px; display:flex; align-items:center; opacity:.7;">
-        скрыт для LDAP
-      </div>
+      <div v-else style="height: 40px;"></div>
     </div>
 
-    <div style="padding-top:22px;">
+    <div style="padding-top: 6px;">
       <Button
         type="button"
         icon="pi pi-trash"
