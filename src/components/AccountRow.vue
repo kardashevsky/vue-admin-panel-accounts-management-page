@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { reactive, watch, computed } from 'vue'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
@@ -53,6 +53,10 @@ const patch = (p: Partial<Account>) => Object.assign(draft, p)
 const LABELS_MAX = 50
 const LOGIN_MAX = 100
 const PASSWORD_MAX = 100
+
+const labelsCount = computed(() => ui.labelsInput.length)
+const loginCount = computed(() => (draft.login ?? '').length)
+const passwordCount = computed(() => (draft.password ?? '').length)
 
 function isLoginValid() {
   const v = draft.login.trim()
@@ -116,27 +120,57 @@ const onPasswordBlur = () => {
 const loginInvalid = () => ui.touched.login && ui.errors.login
 const passwordInvalid = () => ui.touched.password && ui.errors.password
 
+const ids = computed(() => ({
+  labels: `acc-${draft.id}-labels`,
+  type: `acc-${draft.id}-type`,
+  login: `acc-${draft.id}-login`,
+  password: `acc-${draft.id}-password`,
+}))
+
 const rowStyle = {
   display: 'grid',
   gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr auto',
   gap: '12px',
   alignItems: 'start',
 } as const
+
+const fieldStyle = {
+  display: 'flex',
+  flexDirection: 'column',
+  gap: '6px',
+} as const
+
+const labelStyle = {
+  fontSize: '12px',
+  lineHeight: 1.2,
+  color: 'var(--text-color-secondary)',
+} as const
 </script>
 
 <template>
   <div :style="rowStyle">
-    <div>
+    <div :style="fieldStyle">
+      <label :for="ids.labels" :style="labelStyle">Метка</label>
+
       <InputText
+        :inputId="ids.labels"
         v-model="ui.labelsInput"
         :maxlength="LABELS_MAX"
         @blur="onLabelsBlur"
         style="width:100%;"
       />
+
+      <div style="display:flex; justify-content:flex-end;">
+        <small style="opacity:.65; font-size:12px; line-height:1;">
+          {{ labelsCount }}/{{ LABELS_MAX }}
+        </small>
+      </div>
     </div>
 
-    <div>
+    <div :style="fieldStyle">
+      <label :for="ids.type" :style="labelStyle">Тип</label>
       <Select
+        :inputId="ids.type"
         :modelValue="draft.type"
         :options="typeOptions"
         optionLabel="label"
@@ -146,8 +180,11 @@ const rowStyle = {
       />
     </div>
 
-    <div>
+    <div :style="fieldStyle">
+      <label :for="ids.login" :style="labelStyle">Логин</label>
+
       <InputText
+        :inputId="ids.login"
         :modelValue="draft.login"
         @update:modelValue="(v) => patch({ login: v })"
         :maxlength="LOGIN_MAX"
@@ -155,11 +192,20 @@ const rowStyle = {
         :invalid="loginInvalid()"
         style="width:100%;"
       />
+
+      <div style="display:flex; justify-content:flex-end;">
+        <small style="opacity:.65; font-size:12px; line-height:1;">
+          {{ loginCount }}/{{ LOGIN_MAX }}
+        </small>
+      </div>
     </div>
 
-    <div>
+    <div :style="fieldStyle">
+      <label v-if="draft.type === 'LOCAL'" :for="ids.password" :style="labelStyle">Пароль</label>
+
       <InputText
         v-if="draft.type === 'LOCAL'"
+        :inputId="ids.password"
         :modelValue="draft.password ?? ''"
         @update:modelValue="(v) => patch({ password: v })"
         type="password"
@@ -168,10 +214,17 @@ const rowStyle = {
         :invalid="passwordInvalid()"
         style="width:100%;"
       />
+
+      <div v-if="draft.type === 'LOCAL'" style="display:flex; justify-content:flex-end;">
+        <small style="opacity:.65; font-size:12px; line-height:1;">
+          {{ passwordCount }}/{{ PASSWORD_MAX }}
+        </small>
+      </div>
+
       <div v-else style="height:40px;"></div>
     </div>
 
-    <div style="padding-top:6px;">
+    <div style="padding-top:18px;">
       <Button type="button" icon="pi pi-trash" severity="danger" text @click="emit('remove', draft.id)" />
     </div>
   </div>

@@ -22,33 +22,32 @@ const addEmptyAccount = () => {
 
 const updateAccount = (acc: Account) => store.updateAccount(acc)
 const removeAccount = (id: string) => store.removeAccount(id)
-
-const columnsStyle =
-  'display:grid;grid-template-columns:1.2fr 0.8fr 1fr 1fr auto;gap:12px;'
 </script>
 
 <template>
   <div style="padding:24px;max-width:1100px;margin:0 auto;">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 style="margin:0;">Учетные записи</h2>
+      <h2 style="margin:0;">Учётные записи</h2>
       <Button label="Добавить" icon="pi pi-plus" @click="addEmptyAccount" />
     </div>
 
-    <Message severity="info" :closable="false" style="margin-bottom:12px;">
+    <Message v-if="store.accounts.length > 0" severity="info" :closable="false" style="margin-bottom:12px;">
       Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;
     </Message>
 
-    <div :style="columnsStyle + 'padding:0 12px 8px;font-size:12px;opacity:.8;'">
-      <div>Метка</div>
-      <div>Тип</div>
-      <div>Логин *</div>
-      <div>Пароль *</div>
-      <div></div>
-    </div>
-
     <div style="display:grid;gap:12px;">
-      <div v-if="store.accounts.length === 0" style="opacity:.7;">
-        Нет учетных записей
+      <div
+        v-if="store.accounts.length === 0"
+        style="
+          opacity:.7;
+          display:flex;
+          justify-content:center;
+          align-items:center;
+          min-height:200px;
+          text-align:center;
+        "
+      >
+        Нет учётных записей
       </div>
 
       <Card v-else v-for="acc in store.accounts" :key="acc.id">
