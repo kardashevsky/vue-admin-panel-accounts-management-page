@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from 'vue'
+import { reactive, watch } from 'vue'
 import InputText from 'primevue/inputtext'
 import Select from 'primevue/select'
 import Button from 'primevue/button'
@@ -7,6 +7,14 @@ import Button from 'primevue/button'
 import type { Account, AccountType, Label } from '@/types/account'
 
 const props = defineProps<{ modelValue: Account }>()
+const draft = reactive<Account>({ ...props.modelValue })
+
+watch(
+  () => props.modelValue,
+  (v) => Object.assign(draft, v),
+  { deep: true }
+)
+
 const emit = defineEmits<{
   (e: 'update:modelValue', v: Account): void
   (e: 'remove', id: string): void
@@ -54,59 +62,60 @@ function validate(acc: Account) {
   return loginOk && passwordOk
 }
 
-const account = computed(() => props.modelValue)
-
 watch(
-  () => props.modelValue.labels,
+  () => draft.labels,
   (labels) => {
     state.labelsInput = labelsToInput(labels)
   },
   { immediate: true, deep: true }
 )
 
-function update(patch: Partial<Account>) {
-  emit('update:modelValue', { ...props.modelValue, ...patch })
+function updateLocal(patch: Partial<Account>) {
+  Object.assign(draft, patch)
+}
+
+function commitIfValid() {
+  if (validate(draft)) {
+    emit('update:modelValue', { ...draft })
+  }
 }
 
 function onTypeChange(type: AccountType) {
   if (type === 'LDAP') {
-    update({ type, password: null })
+    updateLocal({ type, password: null })
     state.errors.password = false
     state.touched.password = false
   } else {
-    update({ type, password: props.modelValue.password ?? '' })
+    updateLocal({ type, password: draft.password ?? '' })
   }
-
-  validate({
-    ...props.modelValue,
-    type,
-    password: type === 'LDAP' ? null : (props.modelValue.password ?? ''),
-  })
+  commitIfValid()
 }
 
 function onLabelsBlur() {
   const raw = state.labelsInput.slice(0, 50)
-  state.labelsInput = raw
-  update({ labels: parseLabels(raw) })
+  const parsed = parseLabels(raw)
+  updateLocal({ labels: parsed })
+  state.labelsInput = labelsToInput(parsed)
+  emit('update:modelValue', { ...draft })
 }
 
 function onLoginBlur() {
   state.touched.login = true
-  const next = props.modelValue.login.slice(0, 100)
-  if (next !== props.modelValue.login) update({ login: next })
-  validate({ ...props.modelValue, login: next })
+  const next = draft.login.slice(0, 100)
+  updateLocal({ login: next })
+  commitIfValid()
 }
 
 function onPasswordBlur() {
   state.touched.password = true
-  if (props.modelValue.type === 'LDAP') return
-  const next = (props.modelValue.password ?? '').slice(0, 100)
-  if (next !== props.modelValue.password) update({ password: next })
-  validate({ ...props.modelValue, password: next })
+  if (draft.type === 'LDAP') return
+  const next = (draft.password ?? '').slice(0, 100)
+  updateLocal({ password: next })
+  commitIfValid()
 }
 
-const loginInvalid = computed(() => state.errors.login)
-const passwordInvalid = computed(() => state.errors.password)
+const loginInvalid = () => state.touched.login && state.errors.login
+const passwordInvalid = () => state.touched.password && state.errors.password
 </script>
 
 <template>
@@ -130,7 +139,7 @@ const passwordInvalid = computed(() => state.errors.password)
 
     <div>
       <Select
-        :modelValue="account.type"
+        :modelValue="draft.type"
         :options="typeOptions"
         optionLabel="label"
         optionValue="value"
@@ -141,24 +150,24 @@ const passwordInvalid = computed(() => state.errors.password)
 
     <div>
       <InputText
-        :modelValue="account.login"
-        @update:modelValue="(v) => update({ login: v })"
+        :modelValue="draft.login"
+        @update:modelValue="(v) => updateLocal({ login: v })"
         maxlength="100"
         @blur="onLoginBlur"
-        :invalid="loginInvalid"
+        :invalid="loginInvalid()"
         style="width: 100%;"
       />
     </div>
 
     <div>
       <InputText
-        v-if="account.type === 'LOCAL'"
-        :modelValue="account.password ?? ''"
-        @update:modelValue="(v) => update({ password: v })"
+        v-if="draft.type === 'LOCAL'"
+        :modelValue="draft.password ?? ''"
+        @update:modelValue="(v) => updateLocal({ password: v })"
         type="password"
         maxlength="100"
         @blur="onPasswordBlur"
-        :invalid="passwordInvalid"
+        :invalid="passwordInvalid()"
         style="width: 100%;"
       />
       <div v-else style="height: 40px;"></div>
@@ -170,7 +179,7 @@ const passwordInvalid = computed(() => state.errors.password)
         icon="pi pi-trash"
         severity="danger"
         text
-        @click="emit('remove', account.id)"
+        @click="emit('remove', draft.id)"
       />
     </div>
   </div>
