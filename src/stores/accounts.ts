@@ -26,8 +26,13 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   function updateAccount(updated: Account) {
-    const idx = accounts.value.findIndex(a => a.id === updated.id);
-    if (idx !== -1) accounts.value[idx] = updated;
+    const normalized: Account = {
+      ...updated,
+      password: updated.type === 'LDAP' ? null : updated.password,
+    };
+
+    const idx = accounts.value.findIndex(a => a.id === normalized.id);
+    if (idx !== -1) accounts.value[idx] = normalized;
   }
 
   return { accounts, addAccount, removeAccount, updateAccount };
