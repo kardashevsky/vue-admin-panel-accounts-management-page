@@ -7,6 +7,11 @@ import Button from 'primevue/button'
 import type { Account, AccountType, Label } from '@/types/account'
 
 const props = defineProps<{ modelValue: Account }>()
+const emit = defineEmits<{
+  (e: 'update:modelValue', v: Account): void
+  (e: 'remove', id: string): void
+}>()
+
 const draft = reactive<Account>({ ...props.modelValue })
 
 watch(
@@ -15,125 +20,118 @@ watch(
   { deep: true }
 )
 
-const emit = defineEmits<{
-  (e: 'update:modelValue', v: Account): void
-  (e: 'remove', id: string): void
-}>()
-
 const typeOptions: { label: string; value: AccountType }[] = [
   { label: 'LDAP', value: 'LDAP' },
   { label: 'Локальная', value: 'LOCAL' },
 ]
 
-const state = reactive({
+const ui = reactive({
   labelsInput: '',
-  touched: {
-    login: false,
-    password: false,
-  },
-  errors: {
-    login: false,
-    password: false,
-  },
+  touched: { login: false, password: false },
+  errors: { login: false, password: false },
 })
 
-function labelsToInput(labels: Label[]) {
-  return labels.map((l) => l.text).join('; ')
-}
+const labelsToInput = (labels: Label[]) => labels.map(l => l.text).join('; ')
 
-function parseLabels(input: string): Label[] {
-  return input
+const parseLabels = (input: string): Label[] =>
+  input
     .split(';')
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean)
-    .map((text) => ({ text }))
-}
-
-function validate(acc: Account) {
-  const loginOk = acc.login.trim().length > 0 && acc.login.length <= 100
-  const passwordOk =
-    acc.type === 'LDAP'
-      ? true
-      : acc.password !== null && acc.password.trim().length > 0 && acc.password.length <= 100
-
-  state.errors.login = state.touched.login ? !loginOk : false
-  state.errors.password = state.touched.password ? !passwordOk : false
-
-  return loginOk && passwordOk
-}
+    .map(text => ({ text }))
 
 watch(
   () => draft.labels,
   (labels) => {
-    state.labelsInput = labelsToInput(labels)
+    ui.labelsInput = labelsToInput(labels)
   },
   { immediate: true, deep: true }
 )
 
-function updateLocal(patch: Partial<Account>) {
-  Object.assign(draft, patch)
+const patch = (p: Partial<Account>) => Object.assign(draft, p)
+
+const LABELS_MAX = 50
+const LOGIN_MAX = 100
+const PASSWORD_MAX = 100
+
+function isLoginValid() {
+  const v = draft.login.trim()
+  return v.length > 0 && v.length <= LOGIN_MAX
+}
+
+function isPasswordValid() {
+  if (draft.type === 'LDAP') return true
+  const v = (draft.password ?? '').trim()
+  return v.length > 0 && v.length <= PASSWORD_MAX
+}
+
+function setErrors() {
+  ui.errors.login = ui.touched.login ? !isLoginValid() : false
+  ui.errors.password = ui.touched.password ? !isPasswordValid() : false
 }
 
 function commitIfValid() {
-  if (validate(draft)) {
+  setErrors()
+  if (isLoginValid() && isPasswordValid()) {
     emit('update:modelValue', { ...draft })
   }
 }
 
-function onTypeChange(type: AccountType) {
+const onTypeChange = (type: AccountType) => {
   if (type === 'LDAP') {
-    updateLocal({ type, password: null })
-    state.errors.password = false
-    state.touched.password = false
-  } else {
-    updateLocal({ type, password: draft.password ?? '' })
+    patch({ type, password: null })
+    ui.touched.password = false
+    ui.errors.password = false
+    commitIfValid()
+    return
   }
+
+  // LOCAL
+  patch({ type, password: draft.password ?? '' })
+  ui.touched.password = true
   commitIfValid()
 }
 
-function onLabelsBlur() {
-  const raw = state.labelsInput.slice(0, 50)
+const onLabelsBlur = () => {
+  const raw = ui.labelsInput.slice(0, LABELS_MAX)
   const parsed = parseLabels(raw)
-  updateLocal({ labels: parsed })
-  state.labelsInput = labelsToInput(parsed)
+  patch({ labels: parsed })
+  ui.labelsInput = labelsToInput(parsed)
   emit('update:modelValue', { ...draft })
 }
 
-function onLoginBlur() {
-  state.touched.login = true
-  const next = draft.login.slice(0, 100)
-  updateLocal({ login: next })
+const onLoginBlur = () => {
+  ui.touched.login = true
+  patch({ login: draft.login.slice(0, LOGIN_MAX) })
   commitIfValid()
 }
 
-function onPasswordBlur() {
-  state.touched.password = true
+const onPasswordBlur = () => {
   if (draft.type === 'LDAP') return
-  const next = (draft.password ?? '').slice(0, 100)
-  updateLocal({ password: next })
+  ui.touched.password = true
+  patch({ password: (draft.password ?? '').slice(0, PASSWORD_MAX) })
   commitIfValid()
 }
 
-const loginInvalid = () => state.touched.login && state.errors.login
-const passwordInvalid = () => state.touched.password && state.errors.password
+const loginInvalid = () => ui.touched.login && ui.errors.login
+const passwordInvalid = () => ui.touched.password && ui.errors.password
+
+const rowStyle = {
+  display: 'grid',
+  gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr auto',
+  gap: '12px',
+  alignItems: 'start',
+} as const
 </script>
 
 <template>
-  <div
-    style="
-      display: grid;
-      grid-template-columns: 1.2fr 0.8fr 1fr 1fr auto;
-      gap: 12px;
-      align-items: start;
-    "
-  >
+  <div :style="rowStyle">
     <div>
       <InputText
-        v-model="state.labelsInput"
-        placeholder="tag1; tag2; tag3"
-        maxlength="50"
+        v-model="ui.labelsInput"
+        :maxlength="LABELS_MAX"
         @blur="onLabelsBlur"
-        style="width: 100%;"
+        style="width:100%;"
       />
     </div>
 
@@ -144,18 +142,18 @@ const passwordInvalid = () => state.touched.password && state.errors.password
         optionLabel="label"
         optionValue="value"
         @update:modelValue="onTypeChange"
-        style="width: 100%;"
+        style="width:100%;"
       />
     </div>
 
     <div>
       <InputText
         :modelValue="draft.login"
-        @update:modelValue="(v) => updateLocal({ login: v })"
-        maxlength="100"
+        @update:modelValue="(v) => patch({ login: v })"
+        :maxlength="LOGIN_MAX"
         @blur="onLoginBlur"
         :invalid="loginInvalid()"
-        style="width: 100%;"
+        style="width:100%;"
       />
     </div>
 
@@ -163,24 +161,18 @@ const passwordInvalid = () => state.touched.password && state.errors.password
       <InputText
         v-if="draft.type === 'LOCAL'"
         :modelValue="draft.password ?? ''"
-        @update:modelValue="(v) => updateLocal({ password: v })"
+        @update:modelValue="(v) => patch({ password: v })"
         type="password"
-        maxlength="100"
+        :maxlength="PASSWORD_MAX"
         @blur="onPasswordBlur"
         :invalid="passwordInvalid()"
-        style="width: 100%;"
+        style="width:100%;"
       />
-      <div v-else style="height: 40px;"></div>
+      <div v-else style="height:40px;"></div>
     </div>
 
-    <div style="padding-top: 6px;">
-      <Button
-        type="button"
-        icon="pi pi-trash"
-        severity="danger"
-        text
-        @click="emit('remove', draft.id)"
-      />
+    <div style="padding-top:6px;">
+      <Button type="button" icon="pi pi-trash" severity="danger" text @click="emit('remove', draft.id)" />
     </div>
   </div>
 </template>

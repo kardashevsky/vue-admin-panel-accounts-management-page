@@ -4,13 +4,13 @@ import Button from 'primevue/button'
 import Card from 'primevue/card'
 import Message from 'primevue/message'
 
-import { useAccountsStore } from '@/stores/accounts'
 import AccountRow from './AccountRow.vue'
+import { useAccountsStore } from '@/stores/accounts'
 import type { Account } from '@/types/account'
 
 const store = useAccountsStore()
 
-function addEmptyAccount() {
+const addEmptyAccount = () => {
   store.addAccount({
     id: uuidv4(),
     labels: [],
@@ -20,19 +20,17 @@ function addEmptyAccount() {
   })
 }
 
-function updateAccount(acc: Account) {
-  store.updateAccount(acc)
-}
+const updateAccount = (acc: Account) => store.updateAccount(acc)
+const removeAccount = (id: string) => store.removeAccount(id)
 
-function removeAccount(id: string) {
-  store.removeAccount(id)
-}
+const columnsStyle =
+  'display:grid;grid-template-columns:1.2fr 0.8fr 1fr 1fr auto;gap:12px;'
 </script>
 
 <template>
-  <div style="padding: 24px; max-width: 1100px; margin: 0 auto;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-      <h2>Учетные записи</h2>
+  <div style="padding:24px;max-width:1100px;margin:0 auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h2 style="margin:0;">Учетные записи</h2>
       <Button label="Добавить" icon="pi pi-plus" @click="addEmptyAccount" />
     </div>
 
@@ -40,16 +38,7 @@ function removeAccount(id: string) {
       Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;
     </Message>
 
-    <div
-      style="
-        display:grid;
-        grid-template-columns: 1.2fr 0.8fr 1fr 1fr auto;
-        gap: 12px;
-        padding: 0 12px 8px;
-        font-size: 12px;
-        opacity: .8;
-      "
-    >
+    <div :style="columnsStyle + 'padding:0 12px 8px;font-size:12px;opacity:.8;'">
       <div>Метка</div>
       <div>Тип</div>
       <div>Логин *</div>
@@ -57,20 +46,16 @@ function removeAccount(id: string) {
       <div></div>
     </div>
 
-    <div style="display:grid; gap:12px;">
-      <Card v-for="acc in store.accounts" :key="acc.id">
-        <template #content>
-          <AccountRow
-            :modelValue="acc"
-            @update:modelValue="updateAccount"
-            @remove="removeAccount"
-          />
-        </template>
-      </Card>
-
+    <div style="display:grid;gap:12px;">
       <div v-if="store.accounts.length === 0" style="opacity:.7;">
         Нет учетных записей
       </div>
+
+      <Card v-else v-for="acc in store.accounts" :key="acc.id">
+        <template #content>
+          <AccountRow :modelValue="acc" @update:modelValue="updateAccount" @remove="removeAccount" />
+        </template>
+      </Card>
     </div>
   </div>
 </template>
