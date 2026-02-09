@@ -12,26 +12,17 @@ const emit = defineEmits<{
   (e: 'remove', id: string): void
 }>()
 
-const draft = reactive<Account>({ ...props.modelValue })
-
-watch(
-  () => props.modelValue,
-  (v) => Object.assign(draft, v),
-  { deep: true }
-)
+const LABELS_MAX = 50
+const LOGIN_MAX = 100
+const PASSWORD_MAX = 100
 
 const typeOptions: { label: string; value: AccountType }[] = [
   { label: 'LDAP', value: 'LDAP' },
   { label: 'Локальная', value: 'LOCAL' },
 ]
 
-const ui = reactive({
-  labelsInput: '',
-  touched: { login: false, password: false },
-  errors: { login: false, password: false },
-})
-
-const labelsToInput = (labels: Label[]) => labels.map(l => l.text).join('; ')
+const labelsToInput = (labels: Label[]) =>
+  labels.map(l => l.text).join('; ')
 
 const parseLabels = (input: string): Label[] =>
   input
@@ -40,46 +31,64 @@ const parseLabels = (input: string): Label[] =>
     .filter(Boolean)
     .map(text => ({ text }))
 
+const draft = reactive<Account>({ ...props.modelValue })
+
+const ui = reactive({
+  labelsInput: '',
+  touched: { login: false, password: false },
+  errors: { login: false, password: false },
+})
+
+watch(() => props.modelValue, v => Object.assign(draft, v))
+
 watch(
   () => draft.labels,
-  (labels) => {
-    ui.labelsInput = labelsToInput(labels)
-  },
-  { immediate: true, deep: true }
+  labels => { ui.labelsInput = labelsToInput(labels) },
+  { immediate: true }
 )
 
 const patch = (p: Partial<Account>) => Object.assign(draft, p)
 
-const LABELS_MAX = 50
-const LOGIN_MAX = 100
-const PASSWORD_MAX = 100
+const str = (v: string | undefined) => v ?? ''
+const onLoginInput = (v: string | undefined) => patch({ login: str(v) })
+const onPasswordInput = (v: string | undefined) => patch({ password: str(v) })
+
+const ids = computed(() => ({
+  labels: `acc-${draft.id}-labels`,
+  type: `acc-${draft.id}-type`,
+  login: `acc-${draft.id}-login`,
+  password: `acc-${draft.id}-password`,
+}))
 
 const labelsCount = computed(() => ui.labelsInput.length)
 const loginCount = computed(() => (draft.login ?? '').length)
 const passwordCount = computed(() => (draft.password ?? '').length)
 
-function isLoginValid() {
+const isLoginValid = () => {
   const v = draft.login.trim()
   return v.length > 0 && v.length <= LOGIN_MAX
 }
 
-function isPasswordValid() {
+const isPasswordValid = () => {
   if (draft.type === 'LDAP') return true
   const v = (draft.password ?? '').trim()
   return v.length > 0 && v.length <= PASSWORD_MAX
 }
 
-function setErrors() {
+const setErrors = () => {
   ui.errors.login = ui.touched.login ? !isLoginValid() : false
   ui.errors.password = ui.touched.password ? !isPasswordValid() : false
 }
 
-function commitIfValid() {
+const commitIfValid = () => {
   setErrors()
   if (isLoginValid() && isPasswordValid()) {
     emit('update:modelValue', { ...draft })
   }
 }
+
+const loginInvalid = () => ui.touched.login && ui.errors.login
+const passwordInvalid = () => ui.touched.password && ui.errors.password
 
 const onTypeChange = (type: AccountType) => {
   if (type === 'LDAP') {
@@ -90,7 +99,6 @@ const onTypeChange = (type: AccountType) => {
     return
   }
 
-  // LOCAL
   patch({ type, password: draft.password ?? '' })
   ui.touched.password = true
   commitIfValid()
@@ -116,59 +124,29 @@ const onPasswordBlur = () => {
   patch({ password: (draft.password ?? '').slice(0, PASSWORD_MAX) })
   commitIfValid()
 }
-
-const loginInvalid = () => ui.touched.login && ui.errors.login
-const passwordInvalid = () => ui.touched.password && ui.errors.password
-
-const ids = computed(() => ({
-  labels: `acc-${draft.id}-labels`,
-  type: `acc-${draft.id}-type`,
-  login: `acc-${draft.id}-login`,
-  password: `acc-${draft.id}-password`,
-}))
-
-const rowStyle = {
-  display: 'grid',
-  gridTemplateColumns: '1.2fr 0.8fr 1fr 1fr auto',
-  gap: '12px',
-  alignItems: 'start',
-} as const
-
-const fieldStyle = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '6px',
-} as const
-
-const labelStyle = {
-  fontSize: '12px',
-  lineHeight: 1.2,
-  color: 'var(--text-color-secondary)',
-} as const
 </script>
 
 <template>
-  <div :style="rowStyle">
-    <div :style="fieldStyle">
-      <label :for="ids.labels" :style="labelStyle">Метка</label>
+  <div class="acc-row">
+    <div class="acc-field">
+      <label :for="ids.labels" class="acc-label">Метка</label>
 
       <InputText
         :inputId="ids.labels"
         v-model="ui.labelsInput"
         :maxlength="LABELS_MAX"
         @blur="onLabelsBlur"
-        style="width:100%;"
+        class="acc-input"
       />
 
-      <div style="display:flex; justify-content:flex-end;">
-        <small style="opacity:.65; font-size:12px; line-height:1;">
-          {{ labelsCount }}/{{ LABELS_MAX }}
-        </small>
+      <div class="acc-counter-wrap">
+        <small class="acc-counter">{{ labelsCount }}/{{ LABELS_MAX }}</small>
       </div>
     </div>
 
-    <div :style="fieldStyle">
-      <label :for="ids.type" :style="labelStyle">Тип</label>
+    <div class="acc-field">
+      <label :for="ids.type" class="acc-label">Тип</label>
+
       <Select
         :inputId="ids.type"
         :modelValue="draft.type"
@@ -176,56 +154,102 @@ const labelStyle = {
         optionLabel="label"
         optionValue="value"
         @update:modelValue="onTypeChange"
-        style="width:100%;"
+        class="acc-input"
       />
     </div>
 
-    <div :style="fieldStyle">
-      <label :for="ids.login" :style="labelStyle">Логин</label>
+    <div class="acc-field">
+      <label :for="ids.login" class="acc-label">Логин</label>
 
       <InputText
         :inputId="ids.login"
         :modelValue="draft.login"
-        @update:modelValue="(v) => patch({ login: v })"
+        @update:modelValue="onLoginInput"
         :maxlength="LOGIN_MAX"
         @blur="onLoginBlur"
         :invalid="loginInvalid()"
-        style="width:100%;"
+        class="acc-input"
       />
 
-      <div style="display:flex; justify-content:flex-end;">
-        <small style="opacity:.65; font-size:12px; line-height:1;">
-          {{ loginCount }}/{{ LOGIN_MAX }}
-        </small>
+      <div class="acc-counter-wrap">
+        <small class="acc-counter">{{ loginCount }}/{{ LOGIN_MAX }}</small>
       </div>
     </div>
 
-    <div :style="fieldStyle">
-      <label v-if="draft.type === 'LOCAL'" :for="ids.password" :style="labelStyle">Пароль</label>
+    <div class="acc-field">
+      <label v-if="draft.type === 'LOCAL'" :for="ids.password" class="acc-label">Пароль</label>
 
       <InputText
         v-if="draft.type === 'LOCAL'"
         :inputId="ids.password"
         :modelValue="draft.password ?? ''"
-        @update:modelValue="(v) => patch({ password: v })"
+        @update:modelValue="onPasswordInput"
         type="password"
         :maxlength="PASSWORD_MAX"
         @blur="onPasswordBlur"
         :invalid="passwordInvalid()"
-        style="width:100%;"
+        class="acc-input"
       />
 
-      <div v-if="draft.type === 'LOCAL'" style="display:flex; justify-content:flex-end;">
-        <small style="opacity:.65; font-size:12px; line-height:1;">
-          {{ passwordCount }}/{{ PASSWORD_MAX }}
-        </small>
+      <div v-if="draft.type === 'LOCAL'" class="acc-counter-wrap">
+        <small class="acc-counter">{{ passwordCount }}/{{ PASSWORD_MAX }}</small>
       </div>
 
-      <div v-else style="height:40px;"></div>
+      <div v-else class="acc-password-spacer"></div>
     </div>
 
-    <div style="padding-top:18px;">
-      <Button type="button" icon="pi pi-trash" severity="danger" text @click="emit('remove', draft.id)" />
+    <div class="acc-actions">
+      <Button
+        type="button"
+        icon="pi pi-trash"
+        severity="danger"
+        text
+        @click="emit('remove', draft.id)"
+      />
     </div>
   </div>
 </template>
+
+<style scoped>
+.acc-row {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.acc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.acc-label {
+  font-size: 12px;
+  line-height: 1.2;
+  color: var(--text-color-secondary);
+}
+
+.acc-input {
+  width: 100%;
+}
+
+.acc-counter-wrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.acc-counter {
+  opacity: 0.65;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.acc-password-spacer {
+  height: 40px;
+}
+
+.acc-actions {
+  padding-top: 18px;
+}
+</style>

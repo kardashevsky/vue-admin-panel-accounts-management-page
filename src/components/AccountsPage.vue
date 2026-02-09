@@ -22,32 +22,32 @@ const addEmptyAccount = () => {
 
 const updateAccount = (acc: Account) => store.updateAccount(acc)
 const removeAccount = (id: string) => store.removeAccount(id)
+
+const TITLE = 'Учётные записи'
+const BTN_ADD = 'Добавить'
+const HINT_TEXT = 'Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;'
+const EMPTY_TEXT = 'Нет учётных записей'
 </script>
 
 <template>
-  <div style="padding:24px;max-width:1100px;margin:0 auto;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <h2 style="margin:0;">Учётные записи</h2>
-      <Button label="Добавить" icon="pi pi-plus" @click="addEmptyAccount" />
+  <div class="acc-page">
+    <div class="acc-header">
+      <h2 class="acc-title">{{ TITLE }}</h2>
+      <Button :label="BTN_ADD" icon="pi pi-plus" @click="addEmptyAccount" />
     </div>
 
-    <Message v-if="store.accounts.length > 0" severity="info" :closable="false" style="margin-bottom:12px;">
-      Для указания нескольких меток для одной пары логин/пароль используйте разделитель ;
+    <Message
+      v-if="store.accounts.length > 0"
+      severity="info"
+      :closable="false"
+      class="acc-hint"
+    >
+      {{ HINT_TEXT }}
     </Message>
 
-    <div style="display:grid;gap:12px;">
-      <div
-        v-if="store.accounts.length === 0"
-        style="
-          opacity:.7;
-          display:flex;
-          justify-content:center;
-          align-items:center;
-          min-height:200px;
-          text-align:center;
-        "
-      >
-        Нет учётных записей
+    <div class="acc-list">
+      <div v-if="store.accounts.length === 0" class="acc-empty">
+        {{ EMPTY_TEXT }}
       </div>
 
       <Card v-else v-for="acc in store.accounts" :key="acc.id">
@@ -58,3 +58,40 @@ const removeAccount = (id: string) => store.removeAccount(id)
     </div>
   </div>
 </template>
+
+<style scoped>
+.acc-page {
+  padding: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.acc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.acc-title {
+  margin: 0;
+}
+
+.acc-hint {
+  margin-bottom: 12px;
+}
+
+.acc-list {
+  display: grid;
+  gap: 12px;
+}
+
+.acc-empty {
+  opacity: 0.7;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  text-align: center;
+}
+</style>
